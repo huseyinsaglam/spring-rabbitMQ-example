@@ -1,0 +1,57 @@
+RabbitMQ ile Mesaj Yönetimi
+* Message queue yapıları, bir kaynaktan(servis, uygulama vb) alınan mesajı başka bir kaynağa iletmek için kullanılır
+* Özellikle yoğun veri akışının olduğu sistemlerde, çok sayıda verinin işlenmesi esnasında yaşanabilecek tıkanmaların
+önüne geçmek adına, verileri kuyrukta tutma ve sonrasında istenen kaynağa yazma prensibiyle çalışır.
+* RabbitMQ’nun çalışma prensibine bir örnek üzerinden bakalım. Herhangi bir kişi mektubunu postaneye teslim eder ve
+mektubun alıcıya ulaşacağını bilir. Burada RabbitMQ yapısı postane gibi düşünülebilir.
+
+
+    Producer: Mektubu gönderecek olan kişi
+    Queue: Mektupların konulduğu posta kutusu
+    Consumer: Mektubu alıp okuyacak olan kişi
+    Broker: RabbitMQ’nun üzerinde çalıştığı sanal veya fiziksel makinedir.
+    Exchange: Kendi içerisinde bir çok farklı kuyruğu barındıran ve gelen mesajları routing key
+              sayesinde ilgili kuyruklara yönlendiren sanal bir alan diyebiliriz
+              Not : 4 farklı exchange türü bulunup yukarıda bahsedilen messaging pattern’leri desteklemesini sağlayan ve
+              RabbitMQ’nun en önemli farklarından birisidir
+              1- Direct Exchange : Exchange’e bind olan her kuyruğun dinlediği sadece bir key vardır.
+              Bu yapı point-to-point veya message queue haberleşmeye imkan sağlamaktadır
+     Bir ürün satın aldınız ve ödeme yöntemi olarak kredi kartı veya eft tercih edebilirsiniz. Bu iki işlemin gerçekleştireceği processler
+     birbirinden farklı olacağından dolayı ayrı servisler olsun. Kullanıcı her iki ödeme yöntemini birden kullanamayacağından dolayı mesajı
+     fırlattığında bu mesaj sadece bir kuyruk tarafından yakalanıp işlenmesi gerekir. Ayrıca bu servisler sadece belirli bir tipe ait
+     ödeme işlemi gerçekleştireceğinden dolayı birden fazla key’i dinlemesine gerek yoktur. Bundan dolayı oluşturduğumuz bu senaryoda
+     Direct Exchange kullanabiliriz.
+             2- Fanout Exchange: Producer tarafından gönderilen mesajların key bilgisine bakılmaksızın mesajlar exchange’e bind olan bütün kuyruklara
+             gönderilmektedir. Bu da Publish/Subscribe yapısını desteklemektedir.
+             Örnegin : Dershane velilerin kayıtlı olan herkese aynı bildirim mesajı gitmesi
+             3- Topic Exchange : RabbitMQ’nun tercih edilme sebeplerinden biri topic exchange yapısıdır. Burada amaç bir mesajın key yapısına göre
+             bir veya bir çok kuyruğa ilgili mesajın gönderilmesidir. Bu exchange sayesinde Publish/Subscribe yapısını desteklemektedir
+             Topic Exchange kendisine bağlı queue veya queuelara belirli bir pattern veya Direct Exchange gibi queueya route key ile ulaşır.
+             Route key pattern doğrultusunda producer tarafından belirtilmelidir.
+             Topic Exchange için standartta geçerli route key pattern yapısı .# ve .* ile tanımlanır.
+             Veya yukarda bahsettiğim gibi direkt olarak route key isimlendirmesi yapılabilir.
+             .* için .’dan sonra bir belirteç geleceği garanti edilir. .# için .’dan sonra herhangi bir şey gelebilir veya gelmeyebilir
+              gibi düşünülebilir. Örnek kullanımları aşağıdaki gibidir;
+
+                 .* : route.key.* için;
+                 route.key.XYZ → ✓
+                 route.key.ABC → ✓
+                 route.key → ✗
+                 route.key.ABC.XYZ → ✗
+
+                 .# : route.key.# için;
+                 route.key.XYZ → ✓
+                 route.key.ABC → ✓
+                 route.key → ✓
+                 route.key.ABC.XYZ → ✓
+                 route.key.ABC.XYZ.QWE → ✓
+
+             4- Header Exchange: Topic Exchange yapısına çok benzer sadece key üzerinden eşleştirme değilde gönderilen mesajın
+             header bilgisi içerisinde search edip eşleşen key bilgisi var ise ilgili kuyruklara mesajları yönlendirmektedir.
+             Çok kullanışlı bir exchange türü değildir çünkü diğerlerine göre daha fazla efor gerektirir
+
+             Not : Publish/Subscribe : producer’dan fırlatılan mesaj, farklı kuyruklara gönderilip farklı işler gerçekleştiren
+             consumer’lar tarafından alınıp işlenebilir. Örnek vermek gerekirse akıllı evinize siz yaklaştığınızda telefonunuzdan
+             mesafenizi belirten bir mesaj fırlatalım ve bu mesaj farklı işler tarafından yakalanıp
+             gerçekleştirilsin(klima çalışsın, panjurlar açılsın vs).
+
