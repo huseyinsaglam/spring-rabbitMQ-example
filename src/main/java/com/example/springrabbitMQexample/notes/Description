@@ -55,3 +55,78 @@ mektubun alıcıya ulaşacağını bilir. Burada RabbitMQ yapısı postane gibi 
              mesafenizi belirten bir mesaj fırlatalım ve bu mesaj farklı işler tarafından yakalanıp
              gerçekleştirilsin(klima çalışsın, panjurlar açılsın vs).
 
+Kodsal yorumlama
+MessageListener => This class is responsible for getting the message from the RabbitMQ queue.
+                   Bu sınıf, RabbitMQ kuyruğundan mesajı almaktan sorumludur.
+
+RabbitTemplate => Rabbit kuyruguna gidip gelmek icin kullancagız
+
+====== Rabbit queue, exchange ve binding konfigurasyonları ======
+
+    @Bean
+    Queue queue() {
+        return new Queue(nicknameQueueDirect);
+    }
+
+    @Bean
+    public DirectExchange directExchange() {
+        return new DirectExchange(nicknameExchangeDirect);
+    }
+
+    @Bean
+    public Binding binding(final Queue queue, final DirectExchange directExchange){
+        return BindingBuilder.bind(queue).to(directExchange).with(nicknameBindingDirect);
+    }
+
+
+====== Mesajı kuyruktan okurken  ======
+1-
+    // create MessageListenerContainer using default connection factory
+    // Spring MessageListenerContainer, Mesaj Odaklı EJB'nin yerini almıştır.
+    // AMQ konu/sırasıyla bir bağlantı kurulur, bu konudan/sıradan mesajlar alır ve bunları MessageListener'ınıza besler
+    // mesajı kuyruktan okurken
+    @Bean
+    MessageListenerContainer messageListenerContainer(ConnectionFactory connectionFactory){
+        SimpleMessageListenerContainer simpleMessageListenerContainer = new SimpleMessageListenerContainer();
+        simpleMessageListenerContainer.setConnectionFactory(connectionFactory);
+        simpleMessageListenerContainer.setQueues(queue());
+        simpleMessageListenerContainer.setMessageListener(new RabbitMQListner());
+        return simpleMessageListenerContainer;
+    }
+
+2-
+   // Varsayılan bağlantı fabrikasını kullanmak istemiyorsak, kendi CachingConnectionFactory'mizi oluşturabilir ve kullanabiliriz.
+   //create custom connection factory
+   	@Bean
+   	ConnectionFactory connectionFactory() {
+   		CachingConnectionFactory cachingConnectionFactory = new CachingConnectionFactory("localhost");
+   		cachingConnectionFactory.setUsername(username);
+   		cachingConnectionFactory.setUsername(password);
+   		return cachingConnectionFactory;
+   	}
+
+       //create MessageListenerContainer using custom connection factory
+   	@Bean
+   	MessageListenerContainer messageListenerContainer() {
+   		SimpleMessageListenerContainer simpleMessageListenerContainer = new SimpleMessageListenerContainer();
+   		simpleMessageListenerContainer.setConnectionFactory(connectionFactory());
+   		simpleMessageListenerContainer.setQueues(queue());
+   		simpleMessageListenerContainer.setMessageListener(new RabbitMQListner());
+   		return simpleMessageListenerContainer;
+
+   	}
+====== Mesajı kuyruga atarken ======
+Burada mesajı objeyi json çevirme işlemi yapıyor
+    @Bean
+    public MessageConverter jsonMessageConverter() {
+        return new Jackson2JsonMessageConverter();
+    }
+
+
+    @Bean
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
+        final RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
+        rabbitTemplate.setMessageConverter(jsonMessageConverter());
+        return rabbitTemplate;
+    }
+
